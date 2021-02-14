@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/11/10 22:52
-contact: jindaxiang@163.com
-desc: 数据接口源代码
+Date: 2019/11/10 22:52
+Desc: 数据接口源代码
 """
 from functools import partial
 from urllib import parse
@@ -43,7 +41,6 @@ class DataApi:
         headers = {
             "X-Token": self.__token,
         }
-
         url = parse.urljoin(self.__http_url, "/".join([api_name, *kwargs.values()]))
         res = requests.get(url, headers=headers, timeout=self.__timeout)
         if res.status_code != 200:
@@ -53,9 +50,19 @@ class DataApi:
             try:
                 return pd.DataFrame(data_json)
             except ValueError as e:
-                return data_json
-        else:
-            return pd.DataFrame(data_json[fields])
+                result_df = pd.DataFrame.from_dict(data_json, orient="index", columns=[api_name])
+                return result_df
+        else:  # 此处增加处理
+            if api_name == "variety_all_positions":
+                big_df = pd.DataFrame()
+                for item in data_json[fields].keys():
+                    temp_df = pd.DataFrame(data_json[fields][item])
+                    temp_df["code"] = item
+                    big_df = big_df.append(temp_df, ignore_index=True)
+                big_df.reset_index(inplace=True, drop=True)
+                return big_df
+            else:
+                return pd.DataFrame(data_json[fields])
 
     def __getattr__(self, name):
         return partial(self.query, name)

@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/10/21 13:22
-contact: jindaxiang@163.com
-desc: 提供英为财情-利率国债-全球政府债券行情与收益率
+Date: 2019/10/21 13:22
+Desc: 提供英为财情-利率国债-全球政府债券行情与收益率
 """
 import re
 
@@ -26,7 +24,7 @@ def get_sector_symbol_name_url():
     """
     url = "https://cn.investing.com/commodities/"
     res = requests.post(url, headers=short_headers)
-    soup = BeautifulSoup(res.text, 'lxml')
+    soup = BeautifulSoup(res.text, "lxml")
     name_url_option_list = soup.find_all(attrs={"class": "linkTitle"})  # 去掉-所有国家及地区
     url_list = [item.find("a")["href"] for item in name_url_option_list]
     name_list = [item.get_text() for item in name_url_option_list]
@@ -35,12 +33,14 @@ def get_sector_symbol_name_url():
     return name_code_map_dict
 
 
-def get_symbol_name_url(country="能源"):
+def futures_global_commodity_name_url_map(sector="能源"):
     """
     参考网页: https://cn.investing.com/commodities/
     获取选择板块对应的: 具体期货品种的 url 地址
-    :param country: str 板块, 对应 get_global_country_name_url 品种名称
-    :return: dict
+    :param sector: 板块, 对应 get_global_country_name_url 品种名称
+    :type sector: str
+    :return: dict of name-url
+    :rtype: dict
     {'伦敦布伦特原油': '/commodities/brent-oil',
     'WTI原油': '/commodities/crude-oil',
     '伦敦汽油': '/commodities/london-gas-oil',
@@ -52,23 +52,25 @@ def get_symbol_name_url(country="能源"):
     '原油': '/commodities/crude-oil?cid=49774'}
     """
     name_url_dict = get_sector_symbol_name_url()
-    url = f"https://cn.investing.com{name_url_dict[country]}"
+    url = f"https://cn.investing.com{name_url_dict[sector]}"
     res = requests.post(url, headers=short_headers)
-    soup = BeautifulSoup(res.text, 'lxml')
-    url_list = [item.find("a")["href"]
-                for item in soup.find_all(attrs={"class": "plusIconTd"})]
-    name_list = [item.find("a").get_text()
-                 for item in soup.find_all(attrs={"class": "plusIconTd"})]
+    soup = BeautifulSoup(res.text, "lxml")
+    url_list = [
+        item.find("a")["href"].split("?")[0]
+        for item in soup.find_all(attrs={"class": "plusIconTd"})
+    ]
+    name_list = [
+        item.find("a").get_text()
+        for item in soup.find_all(attrs={"class": "plusIconTd"})
+    ]
     name_code_map_dict = {}
     name_code_map_dict.update(zip(name_list, url_list))
     return name_code_map_dict
 
 
 def get_sector_futures(
-        sector="能源",
-        symbol="伦敦布伦特原油",
-        start_date='2000/01/01',
-        end_date='2019/10/17'):
+    sector="能源", symbol="WTI原油", start_date="2000/01/01", end_date="2019/10/17"
+):
     """
     具体国家的具体指数的从 start_date 到 end_date 期间的数据
     :param sector: str 对应函数中的国家名称
@@ -90,55 +92,72 @@ def get_sector_futures(
     2005-01-05  40.51  40.80  41.00  39.90   42.23K
     2005-01-04  41.04  39.40  41.25  38.81   40.10K
     """
-    name_code_dict = get_symbol_name_url(sector)
+    name_code_dict = futures_global_commodity_name_url_map(sector)
     temp_url = f"https://cn.investing.com/{name_code_dict[symbol]}-historical-data"
     res = requests.post(temp_url, headers=short_headers)
-    soup = BeautifulSoup(res.text, 'lxml')
+    soup = BeautifulSoup(res.text, "lxml")
     title = soup.find("h2", attrs={"class": "float_lang_base_1"}).get_text()
     res = requests.post(temp_url, headers=short_headers)
-    soup = BeautifulSoup(res.text, 'lxml')
-    data = soup.find_all(text=re.compile(
-        'window.histDataExcessInfo'))[0].strip()
-    para_data = re.findall(r'\d+', data)
+    soup = BeautifulSoup(res.text, "lxml")
+    data = soup.find_all(text=re.compile("window.histDataExcessInfo"))[0].strip()
+    para_data = re.findall(r"\d+", data)
     payload = {
-        'curr_id': para_data[0],
-        'smlID': para_data[1],
-        'header': title,
-        'st_date': start_date,
-        'end_date': end_date,
-        'interval_sec': 'Daily',
-        'sort_col': 'date',
-        'sort_ord': 'DESC',
-        'action': 'historical_data'
+        "curr_id": para_data[0],
+        "smlID": para_data[1],
+        "header": title,
+        "st_date": start_date,
+        "end_date": end_date,
+        "interval_sec": "Daily",
+        "sort_col": "date",
+        "sort_ord": "DESC",
+        "action": "historical_data",
     }
-    url = 'https://cn.investing.com/instruments/HistoricalDataAjax'
+    url = "https://cn.investing.com/instruments/HistoricalDataAjax"
     res = requests.post(url, data=payload, headers=long_headers)
     temp_df = pd.read_html(res.text)[0]
     df_data = temp_df
     df_data = df_data.set_index(["日期"])
     df_data.index = pd.to_datetime(df_data.index, format="%Y年%m月%d日")
     df_data.index.name = "日期"
-    df_data.columns
     if any(df_data["交易量"].astype(str).str.contains("-")):
-        df_data["交易量"][df_data["交易量"].str.contains("-")] = df_data["交易量"][df_data["交易量"].str.contains("-")].replace("-", 0)
+        df_data["交易量"][df_data["交易量"].str.contains("-")] = df_data["交易量"][
+            df_data["交易量"].str.contains("-")
+        ].replace("-", 0)
     if any(df_data["交易量"].astype(str).str.contains("B")):
-        df_data["交易量"][df_data["交易量"].str.contains("B").fillna(False)] = df_data["交易量"][df_data["交易量"].str.contains("B").fillna(False)].str.replace("B", "").astype(float) * 1000000000
+        df_data["交易量"][df_data["交易量"].str.contains("B").fillna(False)] = (
+            df_data["交易量"][df_data["交易量"].str.contains("B").fillna(False)]
+            .str.replace("B", "")
+            .astype(float)
+            * 1000000000
+        )
     if any(df_data["交易量"].astype(str).str.contains("M")):
-        df_data["交易量"][df_data["交易量"].str.contains("M").fillna(False)] = df_data["交易量"][df_data["交易量"].str.contains("M").fillna(False)].str.replace("M", "").astype(float) * 1000000
+        df_data["交易量"][df_data["交易量"].str.contains("M").fillna(False)] = (
+            df_data["交易量"][df_data["交易量"].str.contains("M").fillna(False)]
+            .str.replace("M", "")
+            .astype(float)
+            * 1000000
+        )
     if any(df_data["交易量"].astype(str).str.contains("K")):
-        df_data["交易量"][df_data["交易量"].str.contains("K").fillna(False)] = df_data["交易量"][df_data["交易量"].str.contains("K").fillna(False)].str.replace("K", "").astype(float) * 1000
+        df_data["交易量"][df_data["交易量"].str.contains("K").fillna(False)] = (
+            df_data["交易量"][df_data["交易量"].str.contains("K").fillna(False)]
+            .str.replace("K", "")
+            .astype(float)
+            * 1000
+        )
     df_data["交易量"] = df_data["交易量"].astype(float)
-    df_data["涨跌幅"] = pd.DataFrame(round(df_data['涨跌幅'].str.replace('%', '').astype(float) / 100, 6))
+    df_data["涨跌幅"] = pd.DataFrame(
+        round(df_data["涨跌幅"].str.replace("%", "").astype(float) / 100, 6)
+    )
     df_data.name = title
     df_data.columns.name = None
     return df_data
 
 
 if __name__ == "__main__":
+    temp_dict = futures_global_commodity_name_url_map(sector="能源")
+    print(temp_dict)
     index_df = get_sector_futures(
-        sector="能源",
-        symbol="WTI原油",
-        start_date='1980/01/01',
-        end_date='1999/01/30')
+        sector="能源", symbol="伦敦布伦特原油", start_date="2012/01/01", end_date="2020/04/04"
+    )
     print(index_df.name)
     print(index_df)

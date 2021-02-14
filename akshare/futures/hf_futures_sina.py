@@ -1,10 +1,9 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/10/30 21:34
-contact: jindaxiang@163.com
-desc: 新浪财经-外盘期货-实时数据获取
+Date: 2020/9/3 10:34
+Desc: 新浪财经-外盘期货-实时数据获取
+http://finance.sina.com.cn/money/future/hf.html
 """
 import time
 
@@ -41,7 +40,7 @@ def hf_subscribe_exchange_symbol():
     获取具体的量价数据
     """
     # res = requests.get(hf_subscribe_exchange_symbol_url, headers=hf_sina_spot_headers)
-    res = requests.get(hf_subscribe_exchange_symbol_url)  # TODO for test
+    res = requests.get(hf_subscribe_exchange_symbol_url)
     res.encoding = "gb2312"
     data_json = demjson.decode(
         res.text[res.text.find("var oHF_1 = ") + 12: res.text.find("var oHF_2 = ") - 2]
@@ -49,7 +48,7 @@ def hf_subscribe_exchange_symbol():
     return list(data_json.keys())
 
 
-def futures_hf_spot(subscribe_list=hf_subscribe_exchange_symbol()):
+def futures_hf_spot(subscribe_list=['CT', 'NID', 'PBD', 'SND', 'ZSD', 'AHD', 'CAD', 'S', 'W', 'C', 'BO', 'SM', 'TRB', 'HG', 'NG', 'CL', 'SI', 'GC', 'LHC', 'OIL', 'XAU', 'XAG', 'XPT', 'XPD']):
     """
     订阅数据处理
     """
@@ -82,6 +81,7 @@ def futures_hf_spot(subscribe_list=hf_subscribe_exchange_symbol()):
         "-",
         "date",
         "symbol",
+        "current_price_rmb",
     ]
     data_df["symbol"] = [
         "NYBOT-棉花",
@@ -108,10 +108,12 @@ def futures_hf_spot(subscribe_list=hf_subscribe_exchange_symbol()):
         "伦敦银",
         "伦敦铂金",
         "伦敦钯金",
+        "马棕油",
     ]
     return data_df[
         [
             "current_price",
+            "current_price_rmb",
             "bid",
             "ask",
             "high",

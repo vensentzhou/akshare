@@ -1,73 +1,84 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/12/27 18:02
-contact: jindaxiang@163.com
-desc: 东方财富网-数据中心-特色数据-商誉
+Date: 2020/9/10 18:02
+Desc: 东方财富网-数据中心-特色数据-商誉
 东方财富网-数据中心-特色数据-商誉-A股商誉市场概况: http://data.eastmoney.com/sy/scgk.html
 东方财富网-数据中心-特色数据-商誉-商誉减值预期明细: http://data.eastmoney.com/sy/yqlist.html
 东方财富网-数据中心-特色数据-商誉-个股商誉减值明细: http://data.eastmoney.com/sy/jzlist.html
 东方财富网-数据中心-特色数据-商誉-个股商誉明细: http://data.eastmoney.com/sy/list.html
 东方财富网-数据中心-特色数据-商誉-行业商誉: http://data.eastmoney.com/sy/hylist.html
 """
-import requests
 import demjson
+from py_mini_racer import py_mini_racer
 import pandas as pd
-import execjs
+import requests
+from tqdm import tqdm
+
 from akshare.stock_feature.cons import stock_em_sy_js
 
-ctx = execjs.compile(stock_em_sy_js)  # 执行 js 渲染
-
+ctx = py_mini_racer.MiniRacer()
+ctx.eval(stock_em_sy_js)
 
 # pd.set_option('display.max_columns', 500)
 # pd.set_option('display.max_rows', 500)
 
 
-def stock_em_sy_profile():
+def stock_em_sy_profile() -> pd.DataFrame:
     """
     东方财富网-数据中心-特色数据-商誉-A股商誉市场概况
     http://data.eastmoney.com/sy/scgk.html
     :return: pandas.DataFrame
     """
-    url = "http://data.eastmoney.com/sy/scgk.html"
-    res = requests.get(url)
+    url = "http://datacenter.eastmoney.com/api/data/get"
+    params = {
+        "type": "RPT_GOODWILL_MARKETSTATISTICS",
+        "sty": "ALL",
+        "p": "1",
+        "ps": "50",
+        "st": "REPORT_DATE",
+        "sr": "-1",
+        "var": "feJIrwLX",
+        "filter": '(TRADE_BOARD="all")((GOODWILL_STATE="1")(|IMPAIRMENT_STATE="1"))',
+        "rt": "53324344",
+    }
+    res = requests.get(url, params=params)
     res.encoding = "gb2312"
     data_text = res.text
     data_json = demjson.decode(
-        data_text[data_text.find("={") + 1 : data_text.find("]};") + 2]
+        data_text[data_text.find("{"):-1]
     )
-    data_df = pd.DataFrame(data_json["scgk"])
+    data_df = pd.DataFrame(data_json["result"]["data"])
     data_df.columns = [
+        "_",
+        "报告期",
         "商誉",
         "商誉减值",
-        "MKT",
         "净资产",
-        "商誉占净资产比例(%)",
-        "商誉减值占净资产比例(%)",
-        "报告期",
-        "净利润规模(元)",
-        "商誉减值占净利润比例(%)",
-        "SygmType",
-        "SyztType",
+        "商誉占净资产比例",
+        "商誉减值占净资产比例",
+        "净利润规模",
+        "商誉减值占净利润比例",
+        "_",
+        "_",
     ]
     data_df = data_df[
         [
+            "报告期",
             "商誉",
             "商誉减值",
             "净资产",
-            "商誉占净资产比例(%)",
-            "商誉减值占净资产比例(%)",
-            "报告期",
-            "净利润规模(元)",
-            "商誉减值占净利润比例(%)",
+            "商誉占净资产比例",
+            "商誉减值占净资产比例",
+            "净利润规模",
+            "商誉减值占净利润比例",
         ]
     ]
     data_df["报告期"] = pd.to_datetime(data_df["报告期"])
     return data_df
 
 
-def _get_page_num_sy_yq_list(symbol="沪深两市", trade_date="2019-12-31"):
+def _get_page_num_sy_yq_list(symbol: str = "沪深两市", trade_date: str = "2019-12-31") -> int:
     """
     东方财富网-数据中心-特色数据-商誉-商誉减值预期明细
     http://data.eastmoney.com/sy/yqlist.html
@@ -98,7 +109,7 @@ def _get_page_num_sy_yq_list(symbol="沪深两市", trade_date="2019-12-31"):
     return data_json["pages"]
 
 
-def stock_em_sy_yq_list(symbol="沪市主板", trade_date="2018-12-31"):
+def stock_em_sy_yq_list(symbol: str = "沪市主板", trade_date: str = "2019-12-31") -> pd.DataFrame:
     """
     东方财富网-数据中心-特色数据-商誉-商誉减值预期明细
     http://data.eastmoney.com/sy/yqlist.html
@@ -114,8 +125,7 @@ def stock_em_sy_yq_list(symbol="沪市主板", trade_date="2018-12-31"):
     url = "http://dcfm.eastmoney.com/EM_MutiSvcExpandInterface/api/js/get"
     page_num = _get_page_num_sy_yq_list(symbol=symbol, trade_date=trade_date)
     temp_df = pd.DataFrame()
-    for page in range(1, page_num + 1):
-        print(f"一共{page_num}页, 正在下载第{page}页")
+    for page in tqdm(range(1, page_num + 1)):
         params = {
             "type": "SY_YG",
             "token": "894050c76af8597a853f5b408b759f5d",
@@ -130,7 +140,7 @@ def stock_em_sy_yq_list(symbol="沪市主板", trade_date="2018-12-31"):
         }
         res = requests.get(url, params=params)
         data_text = res.text
-        data_json = demjson.decode(data_text[data_text.find("={") + 1 :])
+        data_json = demjson.decode(data_text[data_text.find("={") + 1:])
         temp_df = temp_df.append(pd.DataFrame(data_json["data"]), ignore_index=True)
     temp_df.columns = [
         "股票代码",
@@ -155,6 +165,7 @@ def stock_em_sy_yq_list(symbol="沪市主板", trade_date="2018-12-31"):
         "HYName",
         "HYCode",
         "上年商誉",
+        "商誉报告日期",
     ]
     temp_df = temp_df[
         [
@@ -170,13 +181,14 @@ def stock_em_sy_yq_list(symbol="沪市主板", trade_date="2018-12-31"):
             "业绩变动原因",
             "上年度同期净利润(元)",
             "上年商誉",
+            "商誉报告日期",
         ]
     ]
     temp_df["公告日期"] = pd.to_datetime(temp_df["公告日期"])
     return temp_df
 
 
-def _get_page_num_sy_jz_list(symbol="沪市主板", trade_date="2019-06-30"):
+def _get_page_num_sy_jz_list(symbol: str = "沪市主板", trade_date: str = "2019-06-30") -> int:
     """
     东方财富网-数据中心-特色数据-商誉-个股商誉减值明细
     http://data.eastmoney.com/sy/jzlist.html
@@ -207,7 +219,7 @@ def _get_page_num_sy_jz_list(symbol="沪市主板", trade_date="2019-06-30"):
     return data_json["pages"]
 
 
-def stock_em_sy_jz_list(symbol="沪市主板", trade_date="2019-06-30"):
+def stock_em_sy_jz_list(symbol: str = "沪市主板", trade_date: str = "2019-06-30") -> pd.DataFrame:
     """
     东方财富网-数据中心-特色数据-商誉-个股商誉减值明细
     http://data.eastmoney.com/sy/jzlist.html
@@ -223,8 +235,7 @@ def stock_em_sy_jz_list(symbol="沪市主板", trade_date="2019-06-30"):
     url = "http://dcfm.eastmoney.com/EM_MutiSvcExpandInterface/api/js/get"
     page_num = _get_page_num_sy_jz_list(symbol=symbol, trade_date=trade_date)
     temp_df = pd.DataFrame()
-    for page in range(1, page_num + 1):
-        print(f"一共{page_num}页, 正在下载第{page}页")
+    for page in tqdm(range(1, page_num + 1)):
         params = {
             "type": "SY_MX",
             "token": "894050c76af8597a853f5b408b759f5d",
@@ -282,113 +293,123 @@ def stock_em_sy_jz_list(symbol="沪市主板", trade_date="2019-06-30"):
     return temp_df
 
 
-def _get_page_num_sy_list(symbol="沪市主板", trade_date="2019-09-30"):
+def _get_page_num_sy_list(symbol: str = "沪市主板", trade_date: str = "2019-12-31") -> int:
     """
     东方财富网-数据中心-特色数据-商誉-个股商誉明细
     http://data.eastmoney.com/sy/list.html
-    :return: int 获取 个股商誉明细 的总页数
+    :param symbol: choice of {"沪市主板", "深市主板", "中小板", "创业板", "沪深两市"}
+    :type symbol: str
+    :param trade_date: 参考网站指定的数据日期
+    :type trade_date: str
+    :return: 个股商誉明细 的总页数
+    :rtype: int
     """
     symbol_dict = {
-        "沪市主板": f"(MKT='shzb' and REPORTDATE=^{trade_date}^)",
-        "深市主板": f"(MKT='szzb' and REPORTDATE=^{trade_date}^)",
-        "中小板": f"(MKT='zxb' and REPORTDATE=^{trade_date}^)",
-        "创业板": f"(MKT='cyb' and REPORTDATE=^{trade_date}^)",
-        "沪深两市": f"(REPORTDATE=^{trade_date}^)",
+        "沪市主板": f"""(TRADE_BOARD="shzb")(REPORT_DATE='{trade_date}')""",
+        "深市主板": f"""(TRADE_BOARD="szzb")(REPORT_DATE='{trade_date}')""",
+        "中小板": f"""(TRADE_BOARD="zxb")(REPORT_DATE='{trade_date}')""",
+        "创业板": f"""(TRADE_BOARD="cyb")(REPORT_DATE='{trade_date}')""",
+        "沪深两市": f"(REPORT_DATE='{trade_date}')",
     }
-    url = "http://dcfm.eastmoney.com/EM_MutiSvcExpandInterface/api/js/get"
+    url = "http://datacenter.eastmoney.com/api/data/get"
     params = {
-        "type": "SY_MX",
-        "token": "894050c76af8597a853f5b408b759f5d",
-        "st": "NOTICEDATE",
-        "sr": "-1",
+        "type": "RPT_GOODWILL_STOCKDETAILS",
+        "sty": "ALL",
         "p": "1",
         "ps": "50",
-        "js": "var {name}=".format(name=ctx.call("getCode", 8))
-        + "{pages:(tp),data:(x),font:(font)}",
+        "sr": "-1,-1",
+        "st": "NOTICE_DATE,SECURITY_CODE",
+        "var": "QvxsKBaH",
         "filter": symbol_dict[symbol],
-        "rt": "52584576",
+        "rt": "53324381",
     }
     res = requests.get(url, params=params)
-    data_json = demjson.decode(res.text[res.text.find("={") + 1 :])
-    return data_json["pages"]
+    data_json = demjson.decode(res.text[res.text.find("{"):-1])
+    return data_json["result"]["pages"]
 
 
-def stock_em_sy_list(symbol="沪市主板", trade_date="2019-09-30"):
+def stock_em_sy_list(symbol: str = "深市主板", trade_date: str = "2019-12-31") -> pd.DataFrame:
     """
     东方财富网-数据中心-特色数据-商誉-个股商誉明细
     http://data.eastmoney.com/sy/list.html
-    :return: pandas.DataFrame
+    :param symbol: choice of {"沪市主板", "深市主板", "中小板", "创业板", "沪深两市"}
+    :type symbol: str
+    :param trade_date: 参考网站指定的数据日期
+    :type trade_date: str
+    :return: 个股商誉明细数据
+    :rtype: pandas.DataFrame
     """
     symbol_dict = {
-        "沪市主板": f"(MKT='shzb' and REPORTDATE=^{trade_date}^)",
-        "深市主板": f"(MKT='szzb' and REPORTDATE=^{trade_date}^)",
-        "中小板": f"(MKT='zxb' and REPORTDATE=^{trade_date}^)",
-        "创业板": f"(MKT='cyb' and REPORTDATE=^{trade_date}^)",
-        "沪深两市": f"(REPORTDATE=^{trade_date}^)",
+        "沪市主板": f"""(TRADE_BOARD="shzb")(REPORT_DATE='{trade_date}')""",
+        "深市主板": f"""(TRADE_BOARD="szzb")(REPORT_DATE='{trade_date}')""",
+        "中小板": f"""(TRADE_BOARD="zxb")(REPORT_DATE='{trade_date}')""",
+        "创业板": f"""(TRADE_BOARD="cyb")(REPORT_DATE='{trade_date}')""",
+        "沪深两市": f"(REPORT_DATE='{trade_date}')",
     }
-    url = "http://dcfm.eastmoney.com/EM_MutiSvcExpandInterface/api/js/get"
+    url = "http://datacenter.eastmoney.com/api/data/get"
     page_num = _get_page_num_sy_list(symbol=symbol, trade_date=trade_date)
     temp_df = pd.DataFrame()
-    for page in range(1, page_num + 1):
-        print(f"一共{page_num}页, 正在下载第{page}页")
+    for page in tqdm(range(1, page_num + 1)):
         params = {
-            "type": "SY_MX",
-            "token": "894050c76af8597a853f5b408b759f5d",
-            "st": "NOTICEDATE",
-            "sr": "-1",
+            "type": "RPT_GOODWILL_STOCKDETAILS",
+            "sty": "ALL",
             "p": str(page),
             "ps": "50",
-            "js": "var {name}=".format(name=ctx.call("getCode", 8))
-            + "{pages:(tp),data:(x),font:(font)}",
+            "sr": "-1,-1",
+            "st": "NOTICE_DATE,SECURITY_CODE",
+            "var": "QvxsKBaH",
             "filter": symbol_dict[symbol],
-            "rt": "52584576",
+            "rt": "53324381",
         }
         res = requests.get(url, params=params)
         data_text = res.text
-        data_json = demjson.decode(data_text[data_text.find("={") + 1 :])
-        temp_df = temp_df.append(pd.DataFrame(data_json["data"]), ignore_index=True)
+        data_json = demjson.decode(data_text[data_text.find("{"): -1])
+        temp_df = temp_df.append(pd.DataFrame(data_json["result"]["data"]), ignore_index=True)
     temp_df.columns = [
+        "_",
         "股票代码",
-        "COMPANYCODE",
         "股票简称",
-        "MKT",
-        "REPORTTIMETYPECODE",
-        "COMBINETYPECODE",
-        "DATAAJUSTTYPE",
-        "商誉(元)",
-        "GOODWILL_Change",
-        "SUMSHEQUITY",
-        "商誉占净资产比例(%)",
-        "SUMSHEQUITY_Change_Rate",
+        "_",
+        "_",
+        "_",
+        "_",
+        "商誉",
+        "_",
+        "_",
+        "_",
         "公告日期",
-        "REPORTDATE",
-        "净利润(元)",
-        "PARENTNETPROFIT_Change_Rate",
-        "HYName",
-        "HYCode",
-        "净利润同比(%)",
-        "上年商誉(元)",
-        "ListingDate",
-        "ListingState",
-        "MX_Type",
+        "报告期",
+        "上年商誉",
+        "_",
+        "_",
+        "商誉占净资产比例",
+        "_",
+        "净利率",
+        "_",
+        "净利润同比",
+        "_",
+        "_",
+        "_",
+        "_",
     ]
     temp_df = temp_df[
         [
             "股票代码",
             "股票简称",
-            "商誉(元)",
-            "商誉占净资产比例(%)",
+            "商誉",
+            "商誉占净资产比例",
+            "净利率",
+            "净利润同比",
+            "上年商誉",
             "公告日期",
-            "净利润(元)",
-            "净利润同比(%)",
-            "上年商誉(元)",
         ]
     ]
     temp_df["公告日期"] = pd.to_datetime(temp_df["公告日期"])
+    temp_df["股票代码"] = temp_df["股票代码"].str.zfill(6)
     return temp_df
 
 
-def _get_page_num_sy_hy_list(trade_date="2019-09-30"):
+def _get_page_num_sy_hy_list(trade_date: str = "2019-09-30") -> int:
     """
     东方财富网-数据中心-特色数据-商誉-行业商誉
     http://data.eastmoney.com/sy/hylist.html
@@ -412,7 +433,7 @@ def _get_page_num_sy_hy_list(trade_date="2019-09-30"):
     return data_json["pages"]
 
 
-def stock_em_sy_hy_list(trade_date="2019-09-30"):
+def stock_em_sy_hy_list(trade_date: str = "2019-09-30") -> pd.DataFrame:
     """
     东方财富网-数据中心-特色数据-商誉-行业商誉
     http://data.eastmoney.com/sy/hylist.html
@@ -421,8 +442,7 @@ def stock_em_sy_hy_list(trade_date="2019-09-30"):
     url = "http://dcfm.eastmoney.com/EM_MutiSvcExpandInterface/api/js/get"
     page_num = _get_page_num_sy_hy_list(trade_date=trade_date)
     temp_df = pd.DataFrame()
-    for page in range(1, page_num + 1):
-        print(f"一共{page_num}页, 正在下载第{page}页")
+    for page in tqdm(range(1, page_num + 1)):
         params = {
             "type": "HY_SY_SUM",
             "token": "894050c76af8597a853f5b408b759f5d",
@@ -464,11 +484,11 @@ def stock_em_sy_hy_list(trade_date="2019-09-30"):
 if __name__ == "__main__":
     stock_em_sy_profile_df = stock_em_sy_profile()
     print(stock_em_sy_profile_df)
-    stock_em_sy_yq_list_df = stock_em_sy_yq_list()
+    stock_em_sy_yq_list_df = stock_em_sy_yq_list(symbol="沪市主板", trade_date="2019-12-31")
     print(stock_em_sy_yq_list_df)
-    stock_em_sy_jz_list_df = stock_em_sy_jz_list()
+    stock_em_sy_jz_list_df = stock_em_sy_jz_list(symbol="沪市主板", trade_date="2019-12-31")
     print(stock_em_sy_jz_list_df)
-    stock_em_sy_list_df = stock_em_sy_list()
+    stock_em_sy_list_df = stock_em_sy_list(symbol="沪深两市", trade_date="2019-12-31")
     print(stock_em_sy_list_df)
-    stock_em_sy_hy_list_df = stock_em_sy_hy_list()
+    stock_em_sy_hy_list_df = stock_em_sy_hy_list(trade_date="2019-12-31")
     print(stock_em_sy_hy_list_df)

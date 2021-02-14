@@ -1,10 +1,9 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/11/14 20:31
-contact: jindaxiang@163.com
-desc: FF-data-library: http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
+Date: 2019/11/14 20:31
+Desc: FF-data-library
+http://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html
 """
 import pandas as pd
 import requests
@@ -12,7 +11,12 @@ import requests
 from akshare.article.cons import ff_home_url
 
 
-def article_ff_crr():
+def article_ff_crr() -> pd.DataFrame:
+    """
+    FF多因子模型
+    :return: FF多因子模型单一表格
+    :rtype: pandas.DataFrame
+    """
     res = requests.get(ff_home_url)
     # first table
     list_index = (
@@ -142,5 +146,5 @@ def article_ff_crr():
 
 
 if __name__ == "__main__":
-    df_data = article_ff_crr()
-    print(df_data)
+    article_ff_crr_df = article_ff_crr()
+    print(article_ff_crr_df)

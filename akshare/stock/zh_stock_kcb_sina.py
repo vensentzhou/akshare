@@ -1,11 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/10/30 11:28
-contact: jindaxiang@163.com
-desc: 新浪财经-科创板-实时行情数据和历史行情数据(包含前复权和后复权因子)
-优化: 在科创板行情的获取上采用多线程模式(新浪会封IP, 不再优化)
+Date: 2019/10/30 11:28
+Desc: 新浪财经-科创板-实时行情数据和历史行情数据(包含前复权和后复权因子)
 """
 import datetime
 import re
@@ -20,10 +17,11 @@ from akshare.stock.cons import (zh_sina_kcb_stock_payload,
                                 zh_sina_kcb_stock_count_url,
                                 zh_sina_kcb_stock_hist_url,
                                 zh_sina_kcb_stock_hfq_url,
-                                zh_sina_kcb_stock_qfq_url)
+                                zh_sina_kcb_stock_qfq_url,
+                                zh_sina_kcb_stock_amount_url)
 
 
-def get_zh_kcb_page_count():
+def get_zh_kcb_page_count() -> int:
     """
     所有股票的总页数
     http://vip.stock.finance.sina.com.cn/mkt/#hs_a
@@ -37,7 +35,7 @@ def get_zh_kcb_page_count():
         return int(page_count) + 1
 
 
-def stock_zh_kcb_spot():
+def stock_zh_kcb_spot() -> pd.DataFrame:
     """
     从新浪财经-A股获取所有A股的实时行情数据, 大量抓取容易封IP
     http://vip.stock.finance.sina.com.cn/mkt/#qbgg_hk
@@ -48,19 +46,20 @@ def stock_zh_kcb_spot():
     zh_sina_stock_payload_copy = zh_sina_kcb_stock_payload.copy()
     for page in tqdm(range(1, page_count+1)):
         zh_sina_stock_payload_copy.update({"page": page})
+        zh_sina_stock_payload_copy.update({"_s_r_a": "page"})
         res = requests.get(
             zh_sina_kcb_stock_url,
-            params=zh_sina_kcb_stock_payload)
+            params=zh_sina_stock_payload_copy)
         data_json = demjson.decode(res.text)
         big_df = big_df.append(pd.DataFrame(data_json), ignore_index=True)
     return big_df
 
 
-def stock_zh_kcb_daily(symbol="sh688008", factor=""):
+def stock_zh_kcb_daily(symbol: str = "sh688399", adjust: str = "") -> pd.DataFrame:
     """
     从新浪财经-A股获取某个股票的历史行情数据, 大量抓取容易封IP
     :param symbol: str e.g., sh600000
-    :param factor: str 默认为空, 不复权; qfq, 前复权因子; hfq, 后复权因子;
+    :param adjust: str 默认为空, 不复权; qfq, 前复权因子; hfq, 后复权因子;
     :return: pandas.DataFrame
     不复权数据
                 日期     开盘价     最高价     最低价     收盘价        成交    盘后量      盘后额
@@ -89,25 +88,88 @@ def stock_zh_kcb_daily(symbol="sh688008", factor=""):
     res = requests.get(zh_sina_kcb_stock_hist_url.format(symbol, datetime.datetime.now().strftime("%Y_%m_%d"), symbol))
     data_json = demjson.decode(res.text[res.text.find("["):res.text.rfind("]")+1])
     data_df = pd.DataFrame(data_json)
-    data_df.columns = ["日期", "开盘价", "最高价", "最低价", "收盘价", "成交", "盘后量", "盘后额"]
-    if not factor:
-        return data_df
-    if factor == "hfq":
+    data_df.index = pd.to_datetime(data_df["d"])
+    data_df.index.name = "date"
+    del data_df["d"]
+
+    r = requests.get(zh_sina_kcb_stock_amount_url.format(symbol, symbol))
+    amount_data_json = demjson.decode(r.text[r.text.find("["): r.text.rfind("]")+1])
+    amount_data_df = pd.DataFrame(amount_data_json)
+    amount_data_df.index = pd.to_datetime(amount_data_df.date)
+    del amount_data_df["date"]
+    temp_df = pd.merge(data_df, amount_data_df, left_index=True, right_index=True, how="left")
+    temp_df.fillna(method="ffill", inplace=True)
+    temp_df = temp_df.astype(float)
+    temp_df["amount"] = temp_df["amount"] * 10000
+    temp_df["turnover"] = temp_df["v"] / temp_df["amount"]
+    temp_df.columns = ["open", "high", "low", "close", "volume", "after_volume", "after_amount", "outstanding_share", "turnover"]
+
+    if not adjust:
+        return temp_df
+
+    if adjust == "hfq":
         res = requests.get(zh_sina_kcb_stock_hfq_url.format(symbol))
         hfq_factor_df = pd.DataFrame(
             eval(res.text.split("=")[1].split("\n")[0])['data'])
         hfq_factor_df.columns = ["date", "hfq_factor"]
-        return hfq_factor_df
-    if factor == "qfq":
+        hfq_factor_df.index = pd.to_datetime(hfq_factor_df.date)
+        del hfq_factor_df["date"]
+
+        temp_df = pd.merge(
+            temp_df, hfq_factor_df, left_index=True, right_index=True, how="left"
+        )
+        temp_df.fillna(method="ffill", inplace=True)
+        temp_df = temp_df.astype(float)
+        temp_df["open"] = temp_df["open"] * temp_df["hfq_factor"]
+        temp_df["high"] = temp_df["high"] * temp_df["hfq_factor"]
+        temp_df["close"] = temp_df["close"] * temp_df["hfq_factor"]
+        temp_df["low"] = temp_df["low"] * temp_df["hfq_factor"]
+        return temp_df.iloc[:, :-1]
+
+    if adjust == "qfq":
         res = requests.get(zh_sina_kcb_stock_qfq_url.format(symbol))
         qfq_factor_df = pd.DataFrame(
             eval(res.text.split("=")[1].split("\n")[0])['data'])
         qfq_factor_df.columns = ["date", "qfq_factor"]
+        qfq_factor_df.index = pd.to_datetime(qfq_factor_df.date)
+        del qfq_factor_df["date"]
+
+        temp_df = pd.merge(
+            temp_df, qfq_factor_df, left_index=True, right_index=True, how="left"
+        )
+        temp_df.fillna(method="ffill", inplace=True)
+        temp_df = temp_df.astype(float)
+        temp_df["open"] = temp_df["open"] / temp_df["qfq_factor"]
+        temp_df["high"] = temp_df["high"] / temp_df["qfq_factor"]
+        temp_df["close"] = temp_df["close"] / temp_df["qfq_factor"]
+        temp_df["low"] = temp_df["low"] / temp_df["qfq_factor"]
+        return temp_df.iloc[:, :-1]
+
+    if adjust == "hfq-factor":
+        res = requests.get(zh_sina_kcb_stock_hfq_url.format(symbol))
+        hfq_factor_df = pd.DataFrame(
+            eval(res.text.split("=")[1].split("\n")[0])['data'])
+        hfq_factor_df.columns = ["date", "hfq_factor"]
+        hfq_factor_df.index = pd.to_datetime(hfq_factor_df.date)
+        del hfq_factor_df["date"]
+        return hfq_factor_df
+
+    if adjust == "qfq-factor":
+        res = requests.get(zh_sina_kcb_stock_qfq_url.format(symbol))
+        qfq_factor_df = pd.DataFrame(
+            eval(res.text.split("=")[1].split("\n")[0])['data'])
+        qfq_factor_df.columns = ["date", "qfq_factor"]
+        qfq_factor_df.index = pd.to_datetime(qfq_factor_df.date)
+        del qfq_factor_df["date"]
         return qfq_factor_df
 
 
 if __name__ == "__main__":
-    stock_zh_kcb_daily_df = stock_zh_kcb_daily(symbol="sh688008", factor="qfq")
+    stock_zh_kcb_daily_qfq_df = stock_zh_kcb_daily(symbol="sh688399", adjust="qfq")
+    print(stock_zh_kcb_daily_qfq_df)
+    stock_zh_kcb_daily_hfq_df = stock_zh_kcb_daily(symbol="sh688399", adjust="hfq")
+    print(stock_zh_kcb_daily_hfq_df)
+    stock_zh_kcb_daily_df = stock_zh_kcb_daily(symbol="sh688399", adjust="qfq-factor")
     print(stock_zh_kcb_daily_df)
     stock_zh_kcb_spot_df = stock_zh_kcb_spot()
     print(stock_zh_kcb_spot_df)

@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2020/01/02 17:37
-contact: jindaxiang@163.com
-desc: 获取交易法门-工具: https://www.jiaoyifamen.com/tools/
+Date: 2020/01/02 17:37
+Desc: 获取交易法门-工具: https://www.jiaoyifamen.com/tools/
 交易法门首页: https://www.jiaoyifamen.com/
 
 # 交易法门-工具-套利分析
@@ -12,7 +10,7 @@ desc: 获取交易法门-工具: https://www.jiaoyifamen.com/tools/
 交易法门-工具-套利分析-自由价比
 交易法门-工具-套利分析-多腿组合
 交易法门-工具-套利分析-FullCarry
-交易法门-工具-套利分析-套利价差矩阵*
+交易法门-工具-套利分析-套利价差矩阵
 
 # 交易法门-工具-资讯汇总
 交易法门-工具-资讯汇总-研报查询
@@ -31,6 +29,8 @@ desc: 获取交易法门-工具: https://www.jiaoyifamen.com/tools/
 
 # 交易法门-工具-席位分析
 交易法门-工具-席位分析-持仓结构
+交易法门-工具-席位分析-持仓成本
+交易法门-工具-席位分析-建仓过程
 
 # 交易法门-工具-仓单分析
 交易法门-工具-仓单分析-仓单日报
@@ -43,6 +43,9 @@ desc: 获取交易法门-工具: https://www.jiaoyifamen.com/tools/
 交易法门-工具-期限分析-基差分析
 交易法门-工具-期限分析-期限结构
 交易法门-工具-期限分析-价格季节性
+
+# 交易法门-工具-行情分析
+交易法门-工具-行情分析-行情数据
 
 # 交易法门-工具-交易规则
 交易法门-工具-交易规则-限仓规定
@@ -230,79 +233,81 @@ def jyfm_tools_futures_arbitrage_matrix(
     return pd.DataFrame(res.json()["data"])
 
 
-jyfm_exchange_symbol_dict = {
-    "中国金融期货交易所": {
-        "TF": "五债",
-        "T": "十债",
-        "IC": "中证500",
-        "IF": "沪深300",
-        "IH": "上证50",
-        "TS": "二债",
-    },
-    "郑州商品交易所": {
-        "FG": "玻璃",
-        "RS": "菜籽",
-        "CF": "棉花",
-        "LR": "晚稻",
-        "CJ": "红枣",
-        "JR": "粳稻",
-        "ZC": "动力煤",
-        "TA": "PTA",
-        "SA": "纯碱",
-        "AP": "苹果",
-        "WH": "强麦",
-        "SF": "硅铁",
-        "MA": "甲醇",
-        "CY": "棉纱",
-        "RI": "早稻",
-        "OI": "菜油",
-        "SM": "硅锰",
-        "RM": "菜粕",
-        "UR": "尿素",
-        "PM": "普麦",
-        "SR": "白糖",
-    },
-    "大连商品交易所": {
-        "PP": "PP",
-        "RR": "粳米",
-        "BB": "纤板",
-        "A": "豆一",
-        "EG": "乙二醇",
-        "B": "豆二",
-        "C": "玉米",
-        "JM": "焦煤",
-        "I": "铁矿",
-        "J": "焦炭",
-        "L": "塑料",
-        "M": "豆粕",
-        "P": "棕榈",
-        "CS": "淀粉",
-        "V": "PVC",
-        "Y": "豆油",
-        "JD": "鸡蛋",
-        "FB": "胶板",
-        "EB": "苯乙烯",
-    },
-    "上海期货交易所": {
-        "SS": "不锈钢",
-        "RU": "橡胶",
-        "AG": "沪银",
-        "AL": "沪铝",
-        "FU": "燃油",
-        "RB": "螺纹",
-        "CU": "沪铜",
-        "PB": "沪铅",
-        "BU": "沥青",
-        "AU": "沪金",
-        "ZN": "沪锌",
-        "SN": "沪锡",
-        "HC": "热卷",
-        "NI": "沪镍",
-        "WR": "线材",
-        "SP": "纸浆",
-    },
-    "上海国际能源交易中心": {"SC": "原油", "NR": "20号胶"},
-}
+def jyfm_exchange_symbol_dict():
+    jyfm_exchange_symbol_dict_inner = {
+        "中国金融期货交易所": {
+            "TF": "五债",
+            "T": "十债",
+            "IC": "中证500",
+            "IF": "沪深300",
+            "IH": "上证50",
+            "TS": "二债",
+        },
+        "郑州商品交易所": {
+            "FG": "玻璃",
+            "RS": "菜籽",
+            "CF": "棉花",
+            "LR": "晚稻",
+            "CJ": "红枣",
+            "JR": "粳稻",
+            "ZC": "动力煤",
+            "TA": "PTA",
+            "SA": "纯碱",
+            "AP": "苹果",
+            "WH": "强麦",
+            "SF": "硅铁",
+            "MA": "甲醇",
+            "CY": "棉纱",
+            "RI": "早稻",
+            "OI": "菜油",
+            "SM": "硅锰",
+            "RM": "菜粕",
+            "UR": "尿素",
+            "PM": "普麦",
+            "SR": "白糖",
+        },
+        "大连商品交易所": {
+            "PP": "PP",
+            "RR": "粳米",
+            "BB": "纤板",
+            "A": "豆一",
+            "EG": "乙二醇",
+            "B": "豆二",
+            "C": "玉米",
+            "JM": "焦煤",
+            "I": "铁矿",
+            "J": "焦炭",
+            "L": "塑料",
+            "M": "豆粕",
+            "P": "棕榈",
+            "CS": "淀粉",
+            "V": "PVC",
+            "Y": "豆油",
+            "JD": "鸡蛋",
+            "FB": "胶板",
+            "EB": "苯乙烯",
+        },
+        "上海期货交易所": {
+            "SS": "不锈钢",
+            "RU": "橡胶",
+            "AG": "沪银",
+            "AL": "沪铝",
+            "FU": "燃油",
+            "RB": "螺纹",
+            "CU": "沪铜",
+            "PB": "沪铅",
+            "BU": "沥青",
+            "AU": "沪金",
+            "ZN": "沪锌",
+            "SN": "沪锡",
+            "HC": "热卷",
+            "NI": "沪镍",
+            "WR": "线材",
+            "SP": "纸浆",
+        },
+        "上海国际能源交易中心": {"SC": "原油", "NR": "20号胶"},
+    }
+    return jyfm_exchange_symbol_dict_inner
 
 
 # 交易法门-工具-资讯汇总
@@ -590,7 +595,7 @@ def jyfm_tools_position_fund_deal(
 
 # 交易法门-工具-席位分析-持仓结构
 def jyfm_tools_position_structure(
-    trade_date="2020-03-02", seat="永安期货", indicator="long", headers=""
+    trade_date="2020-03-02", seat="永安期货", indicator="持仓变化", headers=""
 ):
     """
     交易法门-工具-席位分析-持仓结构
@@ -599,7 +604,77 @@ def jyfm_tools_position_structure(
     :type trade_date: str
     :param seat: broker name, e.g., seat="永安期货"
     :type seat: str
-    :param indicator: broker name, e.g., long
+    :param indicator: 持仓变化，净持仓分布，总持仓分布; 持仓变化总，净持仓分布总，总持仓分布总
+    :type indicator: str
+    :param headers: headers with cookies
+    :type headers: dict
+    :return: 指定交易日指定机构的持仓结构
+    :rtype: pandas.DataFrame
+    """
+    indicator_dict = {"持仓变化": 1, "净持仓分布": 2, "总持仓分布": 3}
+    params = {
+        "seat": seat,
+        "day": trade_date,
+        "type": indicator_dict[indicator],
+        "_": int(time.time() * 1000),
+    }
+    url = "https://www.jiaoyifamen.com/tools/position/struct"
+    r = requests.get(url, params=params, headers=headers)
+    data_json = r.json()
+    if indicator == "持仓变化":
+        return pd.DataFrame(data_json["varieties"])
+    if indicator == "净持仓分布":
+        return pd.DataFrame(data_json["varieties"])
+    if indicator == "总持仓分布":
+        return pd.DataFrame(data_json["varieties"])
+    if indicator == "持仓变化总":
+        return pd.DataFrame(data_json["ratio"])
+    if indicator == "净持仓分布总":
+        return pd.DataFrame(data_json["ratio"])
+    if indicator == "总持仓分布总":
+        return pd.DataFrame(data_json["ratio"])
+
+
+# 交易法门-工具-席位分析-持仓成本
+def jyfm_tools_position_seat_cost(seat="永安期货", symbol="RB", code="10", headers=""):
+    """
+    交易法门-工具-席位分析-持仓成本
+    https://www.jiaoyifamen.com/tools/position/seat
+    :param seat: broker name, e.g., seat="永安期货"
+    :type seat: str
+    :param symbol: e.g., RB
+    :type symbol: str
+    :param code: e.g., 10
+    :type code: str
+    :param headers: headers with cookies
+    :type headers: dict
+    :return: 指定交易日指定机构的持仓结构
+    :rtype: pandas.DataFrame
+    """
+    params = {
+        "seat": seat,
+        "type": symbol,
+        "code": code,
+        "_": int(time.time() * 1000),
+    }
+    url = "https://www.jiaoyifamen.com/tools/position/seat-cost"
+    r = requests.get(url, params=params, headers=headers)
+    data_json = r.json()
+    return pd.DataFrame(data_json["seatCost"])
+
+
+# 交易法门-工具-席位分析-建仓过程
+def jyfm_tools_position_interest_process(seat="永安期货", symbol="RB", instrument="rb2005", indicator="建仓过程", headers=""):
+    """
+    交易法门-工具-席位分析-持仓成本
+    https://www.jiaoyifamen.com/tools/position/seat
+    :param seat: broker name, e.g., seat="永安期货"
+    :type seat: str
+    :param symbol: e.g., RB
+    :type symbol: str
+    :param instrument: e.g., rb2005
+    :type instrument: str
+    :param indicator: e.g., "建仓过程", "净持仓量", "盈亏图"
     :type indicator: str
     :param headers: headers with cookies
     :type headers: dict
@@ -608,19 +683,19 @@ def jyfm_tools_position_structure(
     """
     params = {
         "seat": seat,
-        "day": trade_date,
-        "structure": "structure",
+        "type": symbol,
+        "instrument": instrument,
         "_": int(time.time() * 1000),
     }
-    url = "https://www.jiaoyifamen.com/tools/position/seat"
+    url = "https://www.jiaoyifamen.com/tools/position/interest-process"
     r = requests.get(url, params=params, headers=headers)
     data_json = r.json()
-    if indicator == "short":
-        return pd.DataFrame(data_json["shortPosition"])
-    if indicator == "long":
-        return pd.DataFrame(data_json["longPosition"])
-    if indicator == "pure":
-        return pd.DataFrame(data_json["purePosition"])
+    if indicator == "建仓过程":
+        return pd.DataFrame(data_json["kLine"], index=data_json["category"], columns=["open", "close", "low", "high"])
+    if indicator == "净持仓量":
+        return pd.DataFrame(data_json["neatPosition"], index=data_json["category"], columns=["净持仓量"])
+    if indicator == "盈亏图":
+        return pd.DataFrame(data_json["profit"], index=data_json["category"], columns=["持仓盈亏"])
 
 
 # 交易法门-工具-仓单分析
@@ -945,6 +1020,38 @@ def jyfm_tools_futures_basis_rule(
         ).T
 
 
+# 交易法门-工具-行情分析-行情数据
+def jyfm_tools_futures_market(symbol="RB", code="10", start_date="2020-01-02", end_date="2020-04-02", option="daily", headers=""):
+    """
+    交易法门-工具-交易规则-限仓规定
+    :param symbol: e.g., "RB"
+    :type symbol: str
+    :param code: e.g., "10"
+    :type code: str
+    :param start_date: e.g., "2020-01-02"
+    :type start_date: str
+    :param end_date: e.g., "2020-04-02"
+    :type end_date: str
+    :param option: e.g., "daily", "weekly", "monthly"
+    :type option: str
+    :param headers: headers with cookies
+    :type headers: dict
+    :return:
+    :rtype: pandas.DataFrame
+    """
+    params = {
+        "type": symbol,
+        "code": code,
+        "beginDay": start_date,
+        "endDay": end_date,
+        "option": option,
+        "_": "1585748470772",
+    }
+    url = "https://www.jiaoyifamen.com/tools/future/market"
+    res = requests.get(url, params=params, headers=headers)
+    return pd.DataFrame(res.json()["tableData"])
+
+
 # 交易法门-工具-交易规则
 def jyfm_tools_position_limit_info(exchange="CFFEX", headers=""):
     """
@@ -1079,9 +1186,15 @@ if __name__ == "__main__":
     # 交易法门-工具-席位分析
     # 交易法门-工具-席位分析-持仓结构
     jyfm_tools_position_structure_df = jyfm_tools_position_structure(
-        trade_date="2020-03-02", seat="永安期货", indicator="long", headers=headers
+        trade_date="2020-03-02", seat="永安期货", indicator="持仓变化", headers=headers
     )
     print(jyfm_tools_position_structure_df)
+    # 交易法门-工具-席位分析-持仓成本
+    jyfm_tools_position_seat_cost_df = jyfm_tools_position_seat_cost(seat="永安期货", symbol="RB", code="10", headers=headers)
+    print(jyfm_tools_position_seat_cost_df)
+    # 交易法门-工具-席位分析-建仓过程
+    jyfm_tools_position_interest_process_df = jyfm_tools_position_interest_process(seat="永安期货", symbol="RB", instrument="rb2005", indicator="建仓过程", headers=headers)
+    print(jyfm_tools_position_interest_process_df)
 
     # 交易法门-工具-仓单分析
     # 交易法门-工具-仓单分析-仓单日报
@@ -1126,6 +1239,11 @@ if __name__ == "__main__":
         symbol="RB", code="05", indicator="期货涨跌统计", headers=headers
     )
     print(jyfm_tools_futures_basis_rule_df)
+
+    # 交易法门-工具-行情分析
+    # 交易法门-工具-行情分析-行情数据
+    jyfm_tools_futures_market_df = jyfm_tools_futures_market(symbol="RB", code="10", start_date="2020-01-02", end_date="2020-04-02", option="daily", headers=headers)
+    print(jyfm_tools_futures_market_df)
 
     # 交易法门-工具-交易规则
     # 交易法门-工具-交易规则-限仓规定

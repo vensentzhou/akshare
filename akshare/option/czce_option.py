@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2020/1/19 14:44
-contact: jindaxiang@163.com
-desc: 郑州商品交易所-交易数据-历史行情下载-期权历史行情下载
+Date: 2020/12/15 19:22
+Desc: 郑州商品交易所-交易数据-历史行情下载-期权历史行情下载
 http://www.czce.com.cn/cn/jysj/lshqxz/H770319index_1.htm
 自 20200101 起，成交量、空盘量、成交额、行权量均为单边计算
 郑州商品交易所-期权上市时间表
@@ -13,19 +11,21 @@ http://www.czce.com.cn/cn/jysj/lshqxz/H770319index_1.htm
 "TA": "20191216"
 "MA": "20191217"
 "RM": "20200116"
+"ZC": "20200630"
 """
 from io import StringIO
+import warnings
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
 
-def option_czce_hist(symbol="SR", year="2019"):
+def option_czce_hist(symbol: str = "SR", year: str = "2019") -> pd.DataFrame:
     """
     郑州商品交易所-交易数据-历史行情下载-期权历史行情下载
     http://www.czce.com.cn/cn/jysj/lshqxz/H770319index_1.htm
-    :param symbol: {"白糖": "SR", "棉花": "CF", "PTA": "TA", "甲醇": "MA", "菜籽粕": "RM"}
+    :param symbol: choice of {"白糖": "SR", "棉花": "CF", "PTA": "TA", "甲醇": "MA", "菜籽粕": "RM", "动力煤": "ZC"}
     :type symbol: str
     :param year: 需要获取数据的年份, 注意品种的上市时间
     :type year: str
@@ -38,10 +38,11 @@ def option_czce_hist(symbol="SR", year="2019"):
         "TA": "2019",
         "MA": "2019",
         "RM": "2020",
+        "ZC": "2020",
     }
     if int(symbol_year_dict[symbol]) > int(year):
-        print(f"{year} year, symbol {symbol} is not on trade")
-        return
+        warnings.warn(f"{year} year, symbol {symbol} is not on trade")
+        return None
     url = "http://app.czce.com.cn/cms/cmsface/czce/newcms/calendarnewAll.jsp"
     payload = {
         "dataType": "HISTORY",
@@ -57,12 +58,14 @@ def option_czce_hist(symbol="SR", year="2019"):
     res = requests.post(url, data=payload)
     soup = BeautifulSoup(res.text, "lxml")
     # 获取 url 地址
-    url = soup.get_text()[soup.get_text().find("'") + 1:soup.get_text().rfind("'")].split(",")[0][:-1]
+    url = str(soup.find("script"))[
+        str(soup.find("script")).find("'") + 1 : str(soup.find("script")).rfind("'")
+    ].split(",")[0][:-1]
     res = requests.get(url)
     option_df = pd.read_table(StringIO(res.text), skiprows=1, sep="|", low_memory=False)
     return option_df
 
 
-if __name__ == '__main__':
-    option_czce_hist_df = option_czce_hist(symbol="RM", year="2020")
-    print(option_czce_hist_df.columns)
+if __name__ == "__main__":
+    option_czce_hist_df = option_czce_hist(symbol="ZC", year="2020")
+    print(option_czce_hist_df)

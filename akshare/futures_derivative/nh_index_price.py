@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/11/26 18:52
-contact: jindaxiang@163.com
-desc: 获取南华期货-商品指数历史走势-价格指数-数值-http://www.nanhua.net/nhzc/varietytrend.html
+Date: 2019/11/26 18:52
+Desc: 获取南华期货-商品指数历史走势-价格指数-数值-http://www.nanhua.net/nhzc/varietytrend.html
 1000 点开始, 用收益率累计
 目标地址: http://www.nanhua.net/ianalysis/varietyindex/price/A.json?t=1574932974280
 """
@@ -14,15 +12,21 @@ import requests
 import pandas as pd
 
 
-def num_to_str_data(str_date):
-
+def num_to_str_data(str_date: str) -> str:
+    """
+    transfer date format
+    :param str_date:
+    :type str_date: str
+    :return: data format
+    :rtype: str
+    """
     str_date = str_date / 1000
     str_date = time.localtime(str_date)  # 生成一个元组的时间
     strp_time = time.strftime("%Y-%m-%d %H:%M:%S", str_date)  # 格式化元组
     return strp_time
 
 
-def get_nh_list():
+def get_nh_list_table() -> pd.DataFrame:
     """
     获取南华期货-南华指数所有品种一览表
     :return: pandas.DataFrame
@@ -102,7 +106,7 @@ def get_nh_list():
     return futures_df
 
 
-def nh_price_index(code="A"):
+def nh_price_index(code: str = "A") -> pd.DataFrame:
     """
     获取南华期货-南华指数单品种所有历史数据
     :param code: str 通过 get_nh_list 提供
@@ -121,7 +125,7 @@ def nh_price_index(code="A"):
     2019-11-25  793.331
     2019-11-26  779.346
     """
-    if code in get_nh_list()["code"].tolist():
+    if code in get_nh_list_table()["code"].tolist():
         t = time.time()
         base_url = f"http://www.nanhua.net/ianalysis/varietyindex/price/{code}.json?t={int(round(t * 1000))}"
         res = requests.get(base_url)
@@ -135,5 +139,5 @@ def nh_price_index(code="A"):
 
 
 if __name__ == "__main__":
-    df = nh_price_index(code="A")
-    print(df)
+    nh_price_index_df = nh_price_index(code="A")
+    print(nh_price_index_df)

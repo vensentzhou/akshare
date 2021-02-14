@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/12/2 23:53
-contact: jindaxiang@163.com
-desc: 百度指数
+Date: 2020/9/28 13:53
+Desc: 百度指数
 感谢 https://cloudcrawler.club/categories/2019%E5%B9%B4%E6%9C%AB%E9%80%86%E5%90%91%E5%A4%8D%E4%B9%A0/
 """
 import matplotlib.pyplot as plt
@@ -55,7 +53,7 @@ def get_ptbk(uniqid: str, cookie: str) -> str:
         return ptbk
 
 
-def baidu_search_index(word: str, start_date: str, end_date: str, cookie: str) -> str:
+def baidu_search_index(word: str = "python", start_date: str = "2020-01-01", end_date: str = "2020-05-01", cookie: str = None) -> str:
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Accept-Encoding": "gzip, deflate",
@@ -72,8 +70,14 @@ def baidu_search_index(word: str, start_date: str, end_date: str, cookie: str) -
     }
     session = requests.Session()
     session.headers.update(headers)
+    params = {
+        "area": "0",
+        "word": '[[{"name":' + f'"{word}"' + ',"wordType"' + ':1}]]',
+        "startDate": start_date,
+        "endDate": end_date,
+    }
     with session.get(
-        url=f"http://index.baidu.com/api/SearchApi/index?word={word}&area=0&startDate={start_date}&endDate={end_date}"
+        url="http://index.baidu.com/api/SearchApi/index", params=params
     ) as response:
         data = response.json()["data"]
         all_data = data["userIndexes"][0]["all"]["data"]
@@ -116,8 +120,14 @@ def baidu_info_index(word: str, start_date: str, end_date: str, cookie: str) -> 
     }
     session = requests.Session()
     session.headers.update(headers)
+    params = {
+        "area": "0",
+        "word": '[[{"name":' + f'"{word}"' + ',"wordType"' + ':1}]]',
+        "startDate": start_date,
+        "endDate": end_date,
+    }
     with session.get(
-        url=f"http://index.baidu.com/api/FeedSearchApi/getFeedIndex?word={word}&area=0&startDate={start_date}&endDate={end_date}"
+        url=f"http://index.baidu.com/api/FeedSearchApi/getFeedIndex", params=params
     ) as response:
         data = response.json()["data"]
         all_data = data["index"][0]["data"]
@@ -143,7 +153,7 @@ def baidu_info_index(word: str, start_date: str, end_date: str, cookie: str) -> 
             return temp_df_1
 
 
-def baidu_media_index(word: str, start_date: str, end_date: str, cookie: str,) -> str:
+def baidu_media_index(word: str = "口罩", start_date: str = "2018-01-01", end_date: str = "2020-04-20", cookie: str = None) -> str:
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Accept-Encoding": "gzip, deflate",
@@ -160,8 +170,14 @@ def baidu_media_index(word: str, start_date: str, end_date: str, cookie: str,) -
     }
     session = requests.Session()
     session.headers.update(headers)
+    params = {
+        "area": "0",
+        "word": '[[{"name":' + f'"{word}"' + ',"wordType"' + ':1}]]',
+        "startDate": start_date,
+        "endDate": end_date,
+    }
     with session.get(
-        url=f"http://index.baidu.com/api/NewsApi/getNewsIndex?word={word}&area=0&startDate={start_date}&endDate={end_date}"
+        url=f"http://index.baidu.com/api/NewsApi/getNewsIndex", params=params
     ) as response:
         data = response.json()["data"]
         all_data = data["index"][0]["data"]
@@ -189,23 +205,23 @@ def baidu_media_index(word: str, start_date: str, end_date: str, cookie: str,) -
 
 
 if __name__ == "__main__":
-    cookie = ""
+    cookie = ''
     data = baidu_search_index(
-        word="中国原油期货", start_date="2020-01-01", end_date="2020-02-14", cookie=cookie
+        word="python", start_date="2020-01-01", end_date="2020-09-14", cookie=cookie
     )
     print(data)
     data.dropna(inplace=True)
     data.plot()
     plt.show()
     data = baidu_info_index(
-        word="中国原油期货", start_date="2018-07-03", end_date="2020-01-21", cookie=cookie
+        word="口罩", start_date="2019-07-03", end_date="2020-09-21", cookie=cookie
     )
     print(data)
     data.dropna(inplace=True)
     data.plot()
     plt.show()
     data = baidu_media_index(
-        word="中国原油期货", start_date="2018-10-27", end_date="2020-01-21", cookie=cookie
+        word="金融科技", start_date="2020-01-01", end_date="2020-09-20", cookie=cookie
     )
     print(data)
     data.dropna(inplace=True)

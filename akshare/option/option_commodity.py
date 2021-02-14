@@ -1,10 +1,8 @@
 # -*- coding:utf-8 -*-
 # /usr/bin/env python
 """
-Author: Albert King
-date: 2019/9/30 13:58
-contact: jindaxiang@163.com
-desc: 获取商品期权数据
+Date: 2021/1/14 20:50
+Desc: 获取商品期权数据
 说明：
 (1) 价格：自2019年12月02日起，纤维板报价单位由元/张改为元/立方米
 (2) 价格：元/吨，鸡蛋为元/500千克，纤维板为元/立方米，胶合板为元/张
@@ -17,25 +15,26 @@ desc: 获取商品期权数据
 """
 import datetime
 import warnings
-from io import StringIO
+from io import StringIO, BytesIO
 
 import requests
 import pandas as pd
 
-from akshare.option.cons import (get_calendar,
-                                 convert_date,
-                                 DCE_DAILY_OPTION_URL,
-                                 SHFE_OPTION_URL,
-                                 CZCE_DAILY_OPTION_URL_3,
-                                 SHFE_HEADERS)
+from akshare.option.cons import (
+    get_calendar,
+    convert_date,
+    DCE_DAILY_OPTION_URL,
+    SHFE_OPTION_URL,
+    CZCE_DAILY_OPTION_URL_3,
+    SHFE_HEADERS,
+)
 
 
-
-def get_dce_option_daily(trade_date="20191017", symbol="玉米期权"):
+def get_dce_option_daily(trade_date="20200817", symbol="聚丙烯期权"):
     """
-    获取大连商品交易所-期权-日频行情数据
+    大连商品交易所-期权-日频行情数据
     :param trade_date: str format："20191017"
-    :param symbol: str "玉米期权" or "豆粕期权"
+    :param symbol: str "玉米期权" or "豆粕期权" or "铁矿石期权", or "液化石油气期权" or "聚乙烯期权" or "聚氯乙烯期权" or "聚丙烯期权"
     :return: pandas.DataFrame
     part-1:
             商品名称          合约名称    开盘价    最高价    最低价    收盘价   前结算价    结算价   涨跌  涨跌1  \
@@ -73,8 +72,8 @@ def get_dce_option_daily(trade_date="20191017", symbol="玉米期权"):
     """
     calendar = get_calendar()
     day = convert_date(trade_date) if trade_date is not None else datetime.date.today()
-    if day.strftime('%Y%m%d') not in calendar:
-        warnings.warn('%s非交易日' % day.strftime('%Y%m%d'))
+    if day.strftime("%Y%m%d") not in calendar:
+        warnings.warn("%s非交易日" % day.strftime("%Y%m%d"))
         return None
     url = DCE_DAILY_OPTION_URL
     payload = {
@@ -83,34 +82,31 @@ def get_dce_option_daily(trade_date="20191017", symbol="玉米期权"):
         "year": str(day.year),
         "month": str(day.month - 1),
         "day": str(day.day),
-        "exportFlag": "txt"
+        "exportFlag": "excel",
     }
     res = requests.post(url, data=payload)
-    f = StringIO(res.text)
-    table_df = pd.read_table(f, encoding="gbk", skiprows=2, header=None, sep=r"\t\t", engine="python")
-    another_df = table_df.iloc[table_df[table_df.iloc[:, 0].str.contains("合约")].iloc[-1].name:, [0, 1]]
+    table_df = pd.read_excel(BytesIO(res.content), header=0)
+    another_df = table_df.iloc[
+        table_df[table_df.iloc[:, 0].str.contains("合约")].iloc[-1].name:, [0, 1]
+    ]
     another_df.reset_index(inplace=True, drop=True)
     another_df.iloc[0] = another_df.iat[0, 0].split("\t")
     another_df.columns = another_df.iloc[0]
     another_df = another_df.iloc[1:, :]
-    table_df = table_df.join(table_df.iloc[:, 1].str.split(r"\t", expand=True), lsuffix="l")
-    table_df.columns = ["商品名称", "_", "最高价", "最低价", "收盘价", "前结算价", "结算价", "涨跌", "涨跌1", "Delta", "成交量", "持仓量", "持仓量变化",
-                        "成交额", "行权量", "合约名称", "开盘价"]
-    table_df = table_df[
-        ["商品名称", "合约名称", "开盘价", "最高价", "最低价", "收盘价", "前结算价", "结算价", "涨跌", "涨跌1", "Delta", "成交量", "持仓量", "持仓量变化", "成交额",
-         "行权量"]]
-    table_df.dropna(axis=1, how="all", inplace=True)
-    product_one_df = table_df.iloc[:table_df[table_df.iloc[:, 0].str.contains("小计")].iloc[0].name, :]
-    product_two_df = table_df.iloc[table_df[table_df.iloc[:, 0].str.contains("小计")].iloc[0].name + 1:
-                                   table_df[table_df.iloc[:, 0].str.contains("小计")].iloc[1].name, :]
-    product_three_df = table_df.iloc[table_df[table_df.iloc[:, 0].str.contains("小计")].iloc[1].name + 1:
-                                     table_df[table_df.iloc[:, 0].str.contains("小计")].iloc[2].name, :]
-    if symbol == "玉米期权":
-        return product_one_df, another_df[another_df.iloc[:, 0].str.contains("c")]
+    if symbol == "豆粕期权":
+        return table_df[table_df["商品名称"] == "豆粕"], another_df[another_df.iloc[:, 0].str.contains("m")]
+    elif symbol == "玉米期权":
+        return table_df[table_df["商品名称"] == "玉米"], another_df[another_df.iloc[:, 0].str.contains("c")]
     elif symbol == "铁矿石期权":
-        return product_two_df, another_df[another_df.iloc[:, 0].str.contains("i")]
-    else:
-        return product_three_df, another_df[another_df.iloc[:, 0].str.contains("m")]
+        return table_df[table_df["商品名称"] == "铁矿石"], another_df[another_df.iloc[:, 0].str.contains("i")]
+    elif symbol == "液化石油气期权":
+        return table_df[table_df["商品名称"] == "液化石油气"], another_df[another_df.iloc[:, 0].str.contains("pg")]
+    elif symbol == "聚乙烯期权":
+        return table_df[table_df["商品名称"] == "聚乙烯"], another_df[another_df.iloc[:, 0].str.contains("i")]
+    elif symbol == "聚氯乙烯期权":
+        return table_df[table_df["商品名称"] == "聚氯乙烯"], another_df[another_df.iloc[:, 0].str.contains("v")]
+    elif symbol == "聚丙烯期权":
+        return table_df[table_df["商品名称"] == "聚丙烯"], another_df[another_df.iloc[:, 0].str.contains("pp")]
 
 
 def get_czce_option_daily(trade_date="20191017", symbol="白糖期权"):
@@ -166,11 +162,11 @@ def get_czce_option_daily(trade_date="20191017", symbol="白糖期权"):
     """
     calendar = get_calendar()
     day = convert_date(trade_date) if trade_date is not None else datetime.date.today()
-    if day.strftime('%Y%m%d') not in calendar:
-        warnings.warn('{}非交易日'.format(day.strftime('%Y%m%d')))
+    if day.strftime("%Y%m%d") not in calendar:
+        warnings.warn("{}非交易日".format(day.strftime("%Y%m%d")))
         return None
     if day > datetime.date(2010, 8, 24):
-        url = CZCE_DAILY_OPTION_URL_3.format(day.strftime('%Y'), day.strftime('%Y%m%d'))
+        url = CZCE_DAILY_OPTION_URL_3.format(day.strftime("%Y"), day.strftime("%Y%m%d"))
         try:
             r = requests.get(url)
             f = StringIO(r.text)
@@ -191,6 +187,10 @@ def get_czce_option_daily(trade_date="20191017", symbol="白糖期权"):
                 temp_df = table_df[table_df.iloc[:, 0].str.contains("RM")]
                 temp_df.reset_index(inplace=True, drop=True)
                 return temp_df.iloc[:-1, :]
+            elif symbol == "动力煤期权":
+                temp_df = table_df[table_df.iloc[:, 0].str.contains("ZC")]
+                temp_df.reset_index(inplace=True, drop=True)
+                return temp_df.iloc[:-1, :]
             else:
                 temp_df = table_df[table_df.iloc[:, 0].str.contains("CF")]
                 temp_df.reset_index(inplace=True, drop=True)
@@ -199,135 +199,115 @@ def get_czce_option_daily(trade_date="20191017", symbol="白糖期权"):
             return None
 
 
-def get_shfe_option_daily(trade_date="20191220", symbol="黄金期权"):
+def get_shfe_option_daily(trade_date="20200827", symbol="铝期权"):
     """
     上海期货交易所-期权-日频行情数据
     :param trade_date: str "20191017"
-    :param symbol: str "铜期权" or "天胶期权" or "黄金期权"
-    :return: pandas.DataFrame
-    part-1:
-            PRODUCTID  PRODUCTSORTNO       PRODUCTNAME  \
-    288  ru_o                100  天胶期权
-    289  ru_o                100  天胶期权
-    290  ru_o                100  天胶期权
-    291  ru_o                100  天胶期权
-    292  ru_o                100  天胶期权
-    ..        ...            ...               ...
-    789  ru_o                100  天胶期权
-    790  ru_o                100  天胶期权
-    791  ru_o                100  天胶期权
-    792  ru_o                100  天胶期权
-    793  ru_o                100  天胶期权
-                           INSTRUMENTID  PRESETTLEMENTPRICE OPENPRICE  \
-    288  ru1911C10000                                   729
-    289  ru1911C10250                                   495
-    290  ru1911C10500                                   293
-    291  ru1911C10750                                   146
-    292  ru1911C11000                                    58
-    ..                              ...                 ...       ...
-    789  ru2010P9500                                    155
-    790  ru2010P9600                                    172
-    791  ru2010P9700                                    189
-    792  ru2010P9800                                    209
-    793  ru2010P9900                                    229
-        HIGHESTPRICE LOWESTPRICE  CLOSEPRICE  SETTLEMENTPRICE  ZD1_CHG  ZD2_CHG  \
-    288                                  778              778       49       49
-    289                                  542              542       47       47
-    290                                  334              334       41       41
-    291                                  176              176       30       30
-    292                                   76               76       18       18
-    ..           ...         ...         ...              ...      ...      ...
-    789                                  151              151       -4       -4
-    790                                  167              167       -5       -5
-    791                                  184              184       -5       -5
-    792                                  204              204       -5       -5
-    793                                  224              224       -5       -5
-         VOLUME  OPENINTEREST  OPENINTERESTCHG  ORDERNO EXECVOLUME  TURNOVER  \
-    288       0             0                0        0          0       0.0
-    289       0             0                0        0          0       0.0
-    290       0             0                0        0          0       0.0
-    291       0             0                0        0          0       0.0
-    292       0             4                0        0          0       0.0
-    ..      ...           ...              ...      ...        ...       ...
-    789       0             0                0        0          0       0.0
-    790       0             0                0        0          0       0.0
-    791       0             0                0        0          0       0.0
-    792       0             0                0        0          0       0.0
-    793       0             0                0        0          0       0.0
-            DELTA
-    288  0.976387
-    289  0.908465
-    290  0.757436
-    291  0.531736
-    292  0.299911
-    ..        ...
-    789 -0.112120
-    790 -0.122028
-    791 -0.131944
-    792 -0.142837
-    793 -0.154073
-
-    part-2:
-          PRODUCTID  PRODUCTSORTNO       PRODUCTNAME HIGHESTPRICE LOWESTPRICE  \
-    1  ru_o                100  天胶期权                     2774           2
-      AVGPRICE  VOLUME  TURNOVER  YEARVOLUME  YEARTURNOVER EXECVOLUME  \
-    1  148.573    8290  0.125033    112.5122     34.062215          0
-       YEAREXECVOLUME
-    1          1.0624
-
-    part-3:
-           PRODUCTID  PRODUCTSORTNO       PRODUCTNAME                    INSTRUMENTID  \
-    12  ru_o                100  天胶期权              ru1911
-    13  ru_o                100  天胶期权              ru2001
-    14  ru_o                100  天胶期权              ru2003
-    15  ru_o                100  天胶期权              ru2004
-    16  ru_o                100  天胶期权              ru2005
-    17  ru_o                100  天胶期权              ru2006
-    18  ru_o                100  天胶期权              ru2007
-    19  ru_o                100  天胶期权              ru2008
-    20  ru_o                100  天胶期权              ru2009
-    21  ru_o                100  天胶期权              ru2010
-           SIGMA
-    12  0.242419
-    13  0.234428
-    14  0.218916
-    15  0.208057
-    16  0.205821
-    17  0.205821
-    18  0.240689
-    19  0.240689
-    20  0.216861
-    21  0.216861
+    :param symbol: str "铜期权" or "天胶期权" or "黄金期权" or "铝期权" or "锌期权"
+    :return: tuple(pandas.DataFrame)
     """
     calendar = get_calendar()
     day = convert_date(trade_date) if trade_date is not None else datetime.date.today()
-    if day.strftime('%Y%m%d') not in calendar:
-        warnings.warn('%s非交易日' % day.strftime('%Y%m%d'))
+    if day.strftime("%Y%m%d") not in calendar:
+        warnings.warn("%s非交易日" % day.strftime("%Y%m%d"))
         return None
     if day > datetime.date(2010, 8, 24):
-        url = SHFE_OPTION_URL.format(day.strftime('%Y%m%d'))
+        url = SHFE_OPTION_URL.format(day.strftime("%Y%m%d"))
         try:
             r = requests.get(url, headers=SHFE_HEADERS)
             json_data = r.json()
-            table_df = pd.DataFrame([row for row in json_data['o_curinstrument'] if
-                                     row['INSTRUMENTID'] not in ['小计', '合计'] and row['INSTRUMENTID'] != ''])
+            table_df = pd.DataFrame(
+                [
+                    row
+                    for row in json_data["o_curinstrument"]
+                    if row["INSTRUMENTID"] not in ["小计", "合计"]
+                    and row["INSTRUMENTID"] != ""
+                ]
+            )
             contract_df = table_df[table_df["PRODUCTNAME"].str.strip() == symbol]
-            product_df = pd.DataFrame(json_data['o_curproduct'])
+            product_df = pd.DataFrame(json_data["o_curproduct"])
             product_df = product_df[product_df["PRODUCTNAME"].str.strip() == symbol]
-            volatility_df = pd.DataFrame(json_data['o_cursigma'])
-            volatility_df = volatility_df[volatility_df["PRODUCTNAME"].str.strip() == symbol]
-            return contract_df, product_df, volatility_df
+            volatility_df = pd.DataFrame(json_data["o_cursigma"])
+            volatility_df = volatility_df[
+                volatility_df["PRODUCTNAME"].str.strip() == symbol
+            ]
+            contract_df.columns = [
+                "_",
+                "_",
+                "_",
+                "合约代码",
+                "前结算价",
+                "开盘价",
+                "最高价",
+                "最低价",
+                "收盘价",
+                "结算价",
+                "涨跌1",
+                "涨跌2",
+                "成交量",
+                "持仓量",
+                "持仓量变化",
+                "_",
+                "行权量",
+                "成交额",
+                "德尔塔",
+                "_",
+                "_",
+                "_",
+                "_",
+            ]
+            contract_df = contract_df[[
+                "合约代码",
+                "开盘价",
+                "最高价",
+                "最低价",
+                "收盘价",
+                "前结算价",
+                "结算价",
+                "涨跌1",
+                "涨跌2",
+                "成交量",
+                "持仓量",
+                "持仓量变化",
+                "成交额",
+                "德尔塔",
+                "行权量",
+            ]]
+
+            volatility_df.columns = [
+                "_",
+                "_",
+                "_",
+                "合约系列",
+                "成交量",
+                "持仓量",
+                "持仓量变化",
+                "行权量",
+                "成交额",
+                "隐含波动率",
+                "_",
+            ]
+
+            volatility_df = volatility_df[[
+                "合约系列",
+                "成交量",
+                "持仓量",
+                "持仓量变化",
+                "成交额",
+                "行权量",
+                "隐含波动率",
+            ]]
+            return contract_df, volatility_df
         except:
             return None
 
 
 if __name__ == "__main__":
-    df_test = get_czce_option_daily(trade_date="20200117", symbol="菜籽粕期权")
-    print(df_test)
-    one, two = get_dce_option_daily(trade_date="20191209", symbol="铁矿石期权")
-    print(one)
-    print(two)
-    one, two, three = get_shfe_option_daily(trade_date="20191220", symbol="黄金期权")
-    print(one)
-    print(two)
-    print(three)
+    get_czce_option_daily_df = get_czce_option_daily(trade_date="20200817", symbol="动力煤期权")
+    print(get_czce_option_daily_df)
+    get_dce_option_daily_one, get_dce_option_daily_two = get_dce_option_daily(trade_date="20210113", symbol="玉米期权")
+    print(get_dce_option_daily_one)
+    print(get_dce_option_daily_two)
+    get_shfe_option_daily_one, get_shfe_option_daily_two = get_shfe_option_daily(trade_date="20200827", symbol="铝期权")
+    print(get_shfe_option_daily_one)
+    print(get_shfe_option_daily_two)
